@@ -1,0 +1,10 @@
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\bin\Debug\PictureViewer.exe.config
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\bin\Debug\PictureViewer.exe
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\bin\Debug\PictureViewer.pdb
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.csproj.AssemblyReference.cache
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.Form1.resources
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.Properties.Resources.resources
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.csproj.GenerateResource.cache
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.csproj.CoreCompileInputs.cache
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.exe
+C:\Users\lowe_\source\repos\PictureViewer\PictureViewer\obj\Debug\PictureViewer.pdb
