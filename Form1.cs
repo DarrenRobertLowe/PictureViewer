@@ -19,19 +19,33 @@ namespace PictureViewer
         private int thumbnailHeight = 96;
         private bool thumbnailsToggleState = true;
         private int tableLayoutPanel1PreviousWidth;
+        private bool FullScreenMode = false;
+        PictureBox pictureBox2 = new PictureBox();
 
+        int oldWindowLeft;
+        int oldWindowTop;
+        System.Windows.Forms.FormWindowState oldWindowState;
+        Rectangle oldWindowBounds;
 
         public Form1()
         {
             InitializeComponent();
-
-            //pictureBox1.WaitOnLoad = false;
+             
             imageList1 = new ImageList();
             imageList1.ImageSize = new Size(thumbnailWidth, thumbnailHeight);
 
             imageList1.ColorDepth = ColorDepth.Depth24Bit;
             tableLayoutPanel1PreviousWidth = tableLayoutPanel1.Width;
 
+            // allow keyboard controls
+            this.KeyPreview = true;
+            //this.KeyUp += new KeyEventHandler(Form1_KeyUp);
+            this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(CheckEscape);
+
+            // custom events
+            pictureBox2.DoubleClick += pictureBox2_DoubleClick;
+
+            // setup
             updateNextPrev();
             updateViewList();
         }
@@ -232,39 +246,114 @@ namespace PictureViewer
 
         private void ToggleThumbnailsButton_Click(object sender, EventArgs e)
         {
-            
             if (thumbnailsToggleState == true)
             {
-
-                //tableLayoutPanel1PreviousWidth = tableLayoutPanel1.Width;
-                //tableLayoutPanel1.ColumnStyles[1].Width = 0;//Hide();
                 thumbnailsToggleState = false;
                 ToggleThumbnailsButton.Text = ">";
                 Console.WriteLine("Hidden");
             }
             else
             {
-                //tableLayoutPanel1.ColumnStyles[1].Width = tableLayoutPanel1PreviousWidth;//Show();
                 thumbnailsToggleState = true;
                 ToggleThumbnailsButton.Text = "<";
                 Console.WriteLine("Visible");
             }
-            
         }
-
 
 
         private void pictureBox1_Click(object sender, EventArgs e)
         {
-            Console.WriteLine("Picture has been clicked. Now would be a good time to full screen it.");
         }
 
 
-        /*
-        private void pictureBox1_LoadCompleted(Object sender, AsyncCompletedEventArgs e)
+        private void pictureBox1_DoubleClick(object sender, EventArgs e)
         {
+            if (pictureBox1.Image != null)
+            {
+                enterFullScreenMode();
+            }
+        }
+
+        private void enterFullScreenMode()
+        {
+            FullScreenMode = true;
+
+            // get the window state
+            getWindowState();
+
+            //resize the window
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.TopMost = true;
+            this.Bounds = Screen.GetBounds(this);
+
+            // draw the new picturebox
+            Form form2 = new Form();
+            this.Owner = form2;
+            this.Controls.Add(pictureBox2); // needed for the picture box to work
+            pictureBox2.Load(pictureBox1.ImageLocation);
+            pictureBox2.Left = 0;
+            pictureBox2.Top = 0;
+            pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBox2.Visible = true;
+            pictureBox2.Size = new Size(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
+            pictureBox2.BackColor = Color.Black;
+            pictureBox2.BringToFront();
+        }
+
+        private void pictureBox2_DoubleClick(object sender, EventArgs e)
+        {
+            exitFullScreenMode();
+        }
+
+        private void exitFullScreenMode()
+        {
+            FullScreenMode = false;
+            loadWindowState();
+            this.Owner = null;
+            pictureBox2.Hide();
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+        }
+
+        private void getWindowState()
+        {
+            oldWindowLeft   = this.Left;
+            oldWindowTop    = this.Top;
+            oldWindowState  = this.WindowState;
+            oldWindowBounds = this.Bounds;
+        }
+
+        private void loadWindowState()
+        {
+            this.Left = oldWindowLeft;
+            this.Top = oldWindowTop;
+            this.WindowState = oldWindowState;
+            this.Bounds = oldWindowBounds;
+        }
+
+
+        private void pictureBox1_LoadProgressChanged(Object sender, AsyncCompletedEventArgs e)
+        {
+            Console.WriteLine("load completed!");
             updateFileInfo(); 
         }
-        */
+
+
+        private void CheckEscape(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)27)
+            {
+                if (FullScreenMode)
+                {
+                    exitFullScreenMode();
+                }
+                else
+                {
+                    Environment.Exit(0);
+                }
+            }
+        }
+
+
     }
 }
