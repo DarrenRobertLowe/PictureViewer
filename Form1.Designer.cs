@@ -212,7 +212,6 @@ namespace PictureViewer
             this.flowLayoutPanel1.PerformLayout();
             this.flowLayoutPanel2.ResumeLayout(false);
             this.ResumeLayout(false);
-
         }
 
         #endregion

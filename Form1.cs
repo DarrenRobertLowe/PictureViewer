@@ -20,6 +20,7 @@ namespace PictureViewer
         private bool thumbnailsToggleState = true;
         private int tableLayoutPanel1PreviousWidth;
         private bool FullScreenMode = false;
+        public string openWithFile = "";
         PictureBox pictureBox2 = new PictureBox();
 
         int oldWindowLeft;
@@ -98,14 +99,24 @@ namespace PictureViewer
         {
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                pictureBox1.Load(openFileDialog1.FileName);
-                folder = System.IO.Path.GetDirectoryName(openFileDialog1.FileName);
-                filteredFiles = getFiles();
-
-                updateFileInfo();
-                updateNextPrev();
-                updateViewList();
+                string filepath = openFileDialog1.FileName;
+                openFile(filepath);
             }
+        }
+
+        public void openFile(string filepath)
+        {
+            Console.WriteLine("opening file : " + filepath);
+            pictureBox1.Load(filepath);
+            Console.WriteLine("pictureBox1 ImageLocation: " + pictureBox1.ImageLocation);
+            folder = System.IO.Path.GetDirectoryName(filepath);
+            filteredFiles = getFiles();
+
+            updateFileInfo();
+            updateNextPrev();
+            updateViewList();
+
+            Console.WriteLine("Info : " + fileInfoText1.Text);
         }
 
         private void updateFileInfo()
@@ -131,13 +142,6 @@ namespace PictureViewer
                 pictureBox1.BackColor = colorDialog1.Color;
             }
         }
-
-        /*
-        private void closeProgram_Click(object sender, EventArgs e) // close
-        {
-            this.Close();
-        }
-        */
 
 
         /// <summary>
@@ -341,7 +345,7 @@ namespace PictureViewer
 
         private void CheckEscape(object sender, KeyPressEventArgs e)
         {
-            if (e.KeyChar == (char)27)
+            if (e.KeyChar == (char)Keys.Escape)
             {
                 if (FullScreenMode)
                 {
