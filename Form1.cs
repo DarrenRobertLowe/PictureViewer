@@ -51,11 +51,14 @@ namespace PictureViewer
             updateViewList();
         }
 
-        private void updateViewList()
+        private async Task updateViewList()
         {
+            
             listView1.Items.Clear();
+
             foreach (String s in filteredFiles)
             {
+                await Task.Delay(1);
                 string filename = System.IO.Path.GetFileName(s);
                 listView1.Items.Add(filename);
             }
@@ -104,7 +107,7 @@ namespace PictureViewer
             }
         }
 
-        public void openFile(string filepath)
+        public async Task openFile(string filepath)
         {
             Console.WriteLine("opening file : " + filepath);
             pictureBox1.Load(filepath);
