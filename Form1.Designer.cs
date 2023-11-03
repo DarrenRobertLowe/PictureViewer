@@ -49,6 +49,7 @@ namespace PictureViewer
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
+
             // 
             // tableLayoutPanel1
             // 

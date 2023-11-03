@@ -43,14 +43,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="PictureViewer.exe" size="81840">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="PictureViewer.exe" size="82864">
       <assemblyIdentity name="PictureViewer" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>K1LHmghpPUiWjWll1ZsxI00BBsYZKr5BrijTYMwZLC4=</dsig:DigestValue>
+        <dsig:DigestValue>dPBER9JdAqHRbOIUQH8LM10aT/kRf7fAjLtX53Zulpk=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>

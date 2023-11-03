@@ -21,12 +21,20 @@ namespace PictureViewer
         private int tableLayoutPanel1PreviousWidth;
         private bool FullScreenMode = false;
         public string openWithFile = "";
+        public float zoomFactor = 1.0f;
         PictureBox pictureBox2 = new PictureBox();
+        PictureBox backdrop = new PictureBox();
 
         int oldWindowLeft;
         int oldWindowTop;
+        float oldX = 0.0f;
+        float oldY = 0.0f;
+        int offsetX = 0;
+        int offsetY = 0;
         System.Windows.Forms.FormWindowState oldWindowState;
         Rectangle oldWindowBounds;
+        //Panel panel = new Panel();
+
 
         public Form1()
         {
@@ -43,6 +51,9 @@ namespace PictureViewer
             //this.KeyUp += new KeyEventHandler(Form1_KeyUp);
             this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(CheckEscape);
 
+            this.MouseWheel += new System.Windows.Forms.MouseEventHandler(CheckMouseWheel);
+
+
             // custom events
             pictureBox2.DoubleClick += pictureBox2_DoubleClick;
 
@@ -50,6 +61,41 @@ namespace PictureViewer
             updateNextPrev();
             updateViewList();
         }
+
+
+        private void CheckMouseWheel(object sender, MouseEventArgs e)
+        {
+            if (FullScreenMode)
+            {
+                // mouse wheel up
+                if (e.Delta > 0)
+                {
+                    zoomFactor = 1.1f;
+                }
+
+                // mouse wheel down
+                if (e.Delta < 0)
+                {
+                    zoomFactor = 0.9f;
+                }
+
+                float oldWidth  = (pictureBox2.Width);
+                float oldHeight = (pictureBox2.Height);
+                float newWidth  = (oldWidth  * zoomFactor);
+                float newHeight = (oldHeight * zoomFactor);
+
+                float offsetX = (MousePosition.X - oldX) * (zoomFactor - 1);
+                float offsetY = (MousePosition.Y - oldY) * (zoomFactor - 1);
+
+
+                pictureBox2.Size = new Size((int)newWidth, (int)newHeight);
+                pictureBox2.Location = new Point((int)(oldX - offsetX), (int)(oldY - offsetY));
+
+                oldX = offsetX;
+                oldY = offsetY;
+            }
+        }
+
 
         private async Task updateViewList()
         {
@@ -207,20 +253,35 @@ namespace PictureViewer
             return allFilesList;
         }
 
+        public bool ThumbnailCallback()
+        {
+            Console.WriteLine("Something went wrong generating a thumbnail!");
+            return true;
+        }
+
         private void getThumbnails()
         {
             imageList1.Images.Clear();
 
             for (var i = 0; i < listView1.Items.Count; i++)
             {
+                Console.WriteLine("Generating thumbnail");
+                // find the image
                 var imageUrl = (folder + "\\" + listView1.Items[i].Text);
                 var image = System.Drawing.Image.FromFile(imageUrl);
-
+                
+                // generate the thumbnail
+                Image.GetThumbnailImageAbort callback = new Image.GetThumbnailImageAbort(ThumbnailCallback);
+                Image img = image.GetThumbnailImage(thumbnailWidth, thumbnailWidth, callback, new IntPtr());
+                
+                /*
                 Bitmap img = new Bitmap(image);
                 Point p = new Point(0);
                 Rectangle area = new Rectangle(new Point(0), new Size(Math.Min(image.Width, thumbnailWidth), Math.Min(image.Height, thumbnailHeight)));
                 img.Clone(area, img.PixelFormat);
+                */
 
+                // add to the image list
                 imageList1.Images.Add("" + i, img);
             }
 
@@ -286,25 +347,59 @@ namespace PictureViewer
             FullScreenMode = true;
 
             // get the window state
-            getWindowState();
+            saveWindowPosition();
+
+            // hide the flowLayoutPanel1
+            flowLayoutPanel1.Hide();
+            flowLayoutPanel2.Hide();
+            listView1.Hide();
+            
 
             //resize the window
-            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            if (this.WindowState == System.Windows.Forms.FormWindowState.Maximized)
+            {
+                Console.WriteLine("Window state was maximized.");
+                this.WindowState = System.Windows.Forms.FormWindowState.Normal;
+            }
+            
             this.FormBorderStyle = FormBorderStyle.None;
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+
+            
+
             this.TopMost = true;
-            this.Bounds = Screen.GetBounds(this);
+
+
+            // get the new window size
+            int screenWidth  = Screen.FromControl(pictureBox2).Bounds.Width;
+            int screenHeight = Screen.FromControl(pictureBox2).Bounds.Height;
+
+
+            // draw a backing panel
+            this.Controls.Add(backdrop); // needed for the picture box to work
+            backdrop.Width = screenWidth;
+            backdrop.Height = screenHeight;
+            backdrop.BackColor = Color.Black;
+            backdrop.Left = 0;
+            backdrop.Top = 0;
+            backdrop.Visible = true;
+            backdrop.Show();
+            backdrop.BringToFront();
 
             // draw the new picturebox
-            Form form2 = new Form();
-            this.Owner = form2;
             this.Controls.Add(pictureBox2); // needed for the picture box to work
             pictureBox2.Load(pictureBox1.ImageLocation);
-            pictureBox2.Left = 0;
-            pictureBox2.Top = 0;
             pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
-            pictureBox2.Visible = true;
-            pictureBox2.Size = new Size(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
+            
+            pictureBox2.Size = new Size(screenWidth, screenHeight);
+            pictureBox2.Left = 0;
+            oldX = pictureBox2.Left;
+            oldY = pictureBox2.Top;
+
+            //int verticalOffset = (int)(Math.Round((screenHeight - pictureBox2.Image.Height) * .5)); // this probably won't work if we use zoom mode
+            pictureBox2.Top = 0;// verticalOffset;
             pictureBox2.BackColor = Color.Black;
+            pictureBox2.Visible = true;
             pictureBox2.BringToFront();
         }
 
@@ -316,13 +411,18 @@ namespace PictureViewer
         private void exitFullScreenMode()
         {
             FullScreenMode = false;
+            flowLayoutPanel1.Show();    // show the flowLayoutPanel1
+            flowLayoutPanel2.Show();    // show the flowLayoutPanel2
+            listView1.Show();           // show the list
             loadWindowState();
             this.Owner = null;
             pictureBox2.Hide();
+            backdrop.Hide();
             this.FormBorderStyle = FormBorderStyle.Sizable;
+
         }
 
-        private void getWindowState()
+        private void saveWindowPosition()
         {
             oldWindowLeft   = this.Left;
             oldWindowTop    = this.Top;
