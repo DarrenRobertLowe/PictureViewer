@@ -7,22 +7,28 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Win32;
+using System.Runtime.InteropServices;
+
 
 namespace PictureViewer
 {
     public partial class Form1 : Form
     {
-        string folder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        private string folder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        private string previousFolder = "";
+
         List<string> filteredFiles = new List<string>(); // used to store the files from the chosen folder
         private int iteration = 0;
-        private int thumbnailWidth  = 128;
-        private int thumbnailHeight = 96;
+        private int thumbnailWidth  = 100;
+        private int thumbnailHeight = 100;
         private bool thumbnailsToggleState = true;
         private int tableLayoutPanel1PreviousWidth;
-        private bool FullScreenMode = false;
+        private bool fullScreenMode = false;
         public string openWithFile = "";
         public float zoomFactor = 1.0f;
-        PictureBox pictureBox2 = new PictureBox();
+
+        PictureBox fullscreenPictureBox = new PictureBox();
         PictureBox backdrop = new PictureBox();
 
         int oldWindowLeft;
@@ -31,85 +37,143 @@ namespace PictureViewer
         float oldY = 0.0f;
         int offsetX = 0;
         int offsetY = 0;
+        bool isDragging = false;
+
         System.Windows.Forms.FormWindowState oldWindowState;
         Rectangle oldWindowBounds;
-        //Panel panel = new Panel();
 
-
+        
         public Form1()
         {
             InitializeComponent();
-             
+
+            /*
+            DialogResult dialogResult = MessageBox.Show("Do you want to use PictureViewer as your default image viewer?", "Associate Files", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {
+                
+                //RegistryKey key = Registry.ClassesRoot.CreateSubKey(".jpg");
+                //key.SetValue("", "MyApplication");
+                //key.CreateSubKey("DefaultIcon").SetValue("", "MyApplication.exe,1");
+                //key.CreateSubKey(@"Shell\Open\Command").SetValue("", "\"C:\\MyApplication\\MyApplication.exe\" \"%1\"");
+                
+                
+                
+                [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+                public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+                private void RegisterForImages()
+                {
+                    // Register the application for images
+                    SHChangeNotify(0x8000000, 0x1000, IntPtr.Zero, IntPtr.Zero);
+                }
+                
+            }
+            else if (dialogResult == DialogResult.No)
+            {
+            }
+            */
+
+            // Set the UserPaint and AllPaintingInWmPaint styles to true
+            this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint, true);
+
             imageList1 = new ImageList();
             imageList1.ImageSize = new Size(thumbnailWidth, thumbnailHeight);
 
             imageList1.ColorDepth = ColorDepth.Depth24Bit;
             tableLayoutPanel1PreviousWidth = tableLayoutPanel1.Width;
 
-            // allow keyboard controls
+            // controls
             this.KeyPreview = true;
             //this.KeyUp += new KeyEventHandler(Form1_KeyUp);
-            this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(CheckEscape);
 
+            this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(CheckKeys);
             this.MouseWheel += new System.Windows.Forms.MouseEventHandler(CheckMouseWheel);
-
+            
 
             // custom events
-            pictureBox2.DoubleClick += pictureBox2_DoubleClick;
+            fullscreenPictureBox.DoubleClick += fullscreen_DoubleClick;
+            fullscreenPictureBox.MouseDown += fullscreen_Clicked;
+            fullscreenPictureBox.MouseMove += fullscreen_Moving;
+            fullscreenPictureBox.MouseUp += fullscreen_Released;
+            //fullscreenPictureBox.KeyUp += fullscreen_KeyPress;
+            this.PreviewKeyDown += new PreviewKeyDownEventHandler(fullscreen_PreviewKeyDown);
+            this.KeyDown += new KeyEventHandler(fullscreen_KeyDown);
 
             // setup
             updateNextPrev();
             updateViewList();
         }
 
-
-        private void CheckMouseWheel(object sender, MouseEventArgs e)
+        private void CheckMouseWheel(object sender, MouseEventArgs mouse)
         {
-            if (FullScreenMode)
+            if (fullScreenMode)
             {
                 // mouse wheel up
-                if (e.Delta > 0)
+                if (mouse.Delta > 0)
                 {
                     zoomFactor = 1.1f;
                 }
 
                 // mouse wheel down
-                if (e.Delta < 0)
+                if (mouse.Delta < 0)
                 {
                     zoomFactor = 0.9f;
                 }
 
-                float oldWidth  = (pictureBox2.Width);
-                float oldHeight = (pictureBox2.Height);
-                float newWidth  = (oldWidth  * zoomFactor);
-                float newHeight = (oldHeight * zoomFactor);
+                float newWidth  = (fullscreenPictureBox.Width * zoomFactor);
+                float newHeight = (fullscreenPictureBox.Height * zoomFactor);
 
-                float offsetX = (MousePosition.X - oldX) * (zoomFactor - 1);
-                float offsetY = (MousePosition.Y - oldY) * (zoomFactor - 1);
-
-
-                pictureBox2.Size = new Size((int)newWidth, (int)newHeight);
-                pictureBox2.Location = new Point((int)(oldX - offsetX), (int)(oldY - offsetY));
-
-                oldX = offsetX;
-                oldY = offsetY;
+                fullscreenPictureBox.Size = new Size((int)newWidth, (int)newHeight);
+                fullscreenPictureBox.Left = (int)(mouse.X - zoomFactor * (mouse.X - fullscreenPictureBox.Left));
+                fullscreenPictureBox.Top  = (int)(mouse.Y - zoomFactor * (mouse.Y - fullscreenPictureBox.Top));
             }
         }
 
 
-        private async Task updateViewList()
+        // Image dragging while zoomed
+        private void fullscreen_Clicked(object sender, MouseEventArgs mouse)
+        {
+            offsetX = mouse.X;
+            offsetY = mouse.Y;
+            isDragging = true;
+        }
+
+        private void fullscreen_Moving(object sender, MouseEventArgs mouse)
         {
             
-            listView1.Items.Clear();
-
-            foreach (String s in filteredFiles)
+            if (isDragging)
             {
-                await Task.Delay(1);
-                string filename = System.IO.Path.GetFileName(s);
-                listView1.Items.Add(filename);
+                int newX = fullscreenPictureBox.Left + mouse.X - offsetX;
+                int newY = fullscreenPictureBox.Top  + mouse.Y - offsetY;
+                fullscreenPictureBox.Left = newX;
+                fullscreenPictureBox.Top = newY;
             }
+        }
 
-            getThumbnails();
+        private void fullscreen_Released(object sender, MouseEventArgs mouse)
+        {
+            isDragging = false;
+        }
+
+
+        // update the list of items
+        private async Task updateViewList()
+        {
+            if (folder != previousFolder)
+            {
+                listView1.Items.Clear();
+
+                foreach (String s in filteredFiles)
+                {
+                    await Task.Delay(1);
+                    string filename = System.IO.Path.GetFileName(s);
+                    listView1.Items.Add(filename);
+                }
+
+                getThumbnails();
+                previousFolder = folder;
+            } 
         }
 
 
@@ -259,27 +323,38 @@ namespace PictureViewer
             return true;
         }
 
+        private Image ResizeImage(string imageUrl, int thumbnailWidth, int thumbnailHeight)
+        {
+            var image = System.Drawing.Image.FromFile(imageUrl);
+
+            double ratio    = Math.Min((double)thumbnailWidth / image.Width, (double)thumbnailHeight / image.Height);
+            int newWidth    = (int)(image.Width * ratio);
+            int newHeight   = (int)(image.Height * ratio);
+            Bitmap thumbnail = new Bitmap(thumbnailWidth, thumbnailHeight);
+
+            using (Graphics graphic = Graphics.FromImage(thumbnail))
+            {
+                graphic.Clear(Color.White);
+                graphic.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighSpeed;
+                graphic.DrawImage(image, (thumbnailWidth - newWidth) / 2, (thumbnailHeight - newHeight) / 2, newWidth, newHeight);
+            }
+
+            return thumbnail;
+        }
+
         private void getThumbnails()
         {
             imageList1.Images.Clear();
 
             for (var i = 0; i < listView1.Items.Count; i++)
             {
-                Console.WriteLine("Generating thumbnail");
                 // find the image
                 var imageUrl = (folder + "\\" + listView1.Items[i].Text);
                 var image = System.Drawing.Image.FromFile(imageUrl);
                 
                 // generate the thumbnail
                 Image.GetThumbnailImageAbort callback = new Image.GetThumbnailImageAbort(ThumbnailCallback);
-                Image img = image.GetThumbnailImage(thumbnailWidth, thumbnailWidth, callback, new IntPtr());
-                
-                /*
-                Bitmap img = new Bitmap(image);
-                Point p = new Point(0);
-                Rectangle area = new Rectangle(new Point(0), new Size(Math.Min(image.Width, thumbnailWidth), Math.Min(image.Height, thumbnailHeight)));
-                img.Clone(area, img.PixelFormat);
-                */
+                Image img = ResizeImage(imageUrl, thumbnailWidth, thumbnailHeight);
 
                 // add to the image list
                 imageList1.Images.Add("" + i, img);
@@ -292,8 +367,6 @@ namespace PictureViewer
                 var file = listView1.Items[i];
                 file.ImageIndex = i;
             }
-
-
         }
 
 
@@ -344,7 +417,7 @@ namespace PictureViewer
 
         private void enterFullScreenMode()
         {
-            FullScreenMode = true;
+            fullScreenMode = true;
 
             // get the window state
             saveWindowPosition();
@@ -371,8 +444,8 @@ namespace PictureViewer
 
 
             // get the new window size
-            int screenWidth  = Screen.FromControl(pictureBox2).Bounds.Width;
-            int screenHeight = Screen.FromControl(pictureBox2).Bounds.Height;
+            int screenWidth  = Screen.FromControl(fullscreenPictureBox).Bounds.Width;
+            int screenHeight = Screen.FromControl(fullscreenPictureBox).Bounds.Height;
 
 
             // draw a backing panel
@@ -387,36 +460,36 @@ namespace PictureViewer
             backdrop.BringToFront();
 
             // draw the new picturebox
-            this.Controls.Add(pictureBox2); // needed for the picture box to work
-            pictureBox2.Load(pictureBox1.ImageLocation);
-            pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
+            this.Controls.Add(fullscreenPictureBox); // needed for the picture box to work
+            fullscreenPictureBox.Load(pictureBox1.ImageLocation);
+            fullscreenPictureBox.SizeMode = PictureBoxSizeMode.Zoom;
             
-            pictureBox2.Size = new Size(screenWidth, screenHeight);
-            pictureBox2.Left = 0;
-            oldX = pictureBox2.Left;
-            oldY = pictureBox2.Top;
+            fullscreenPictureBox.Size = new Size(screenWidth, screenHeight);
+            fullscreenPictureBox.Left = 0;
+            oldX = fullscreenPictureBox.Left;
+            oldY = fullscreenPictureBox.Top;
 
             //int verticalOffset = (int)(Math.Round((screenHeight - pictureBox2.Image.Height) * .5)); // this probably won't work if we use zoom mode
-            pictureBox2.Top = 0;// verticalOffset;
-            pictureBox2.BackColor = Color.Black;
-            pictureBox2.Visible = true;
-            pictureBox2.BringToFront();
+            fullscreenPictureBox.Top = 0;// verticalOffset;
+            fullscreenPictureBox.BackColor = Color.Black;
+            fullscreenPictureBox.Visible = true;
+            fullscreenPictureBox.BringToFront();
         }
 
-        private void pictureBox2_DoubleClick(object sender, EventArgs e)
+        private void fullscreen_DoubleClick(object sender, EventArgs e)
         {
             exitFullScreenMode();
         }
 
         private void exitFullScreenMode()
         {
-            FullScreenMode = false;
+            fullScreenMode = false;
             flowLayoutPanel1.Show();    // show the flowLayoutPanel1
             flowLayoutPanel2.Show();    // show the flowLayoutPanel2
             listView1.Show();           // show the list
             loadWindowState();
             this.Owner = null;
-            pictureBox2.Hide();
+            fullscreenPictureBox.Hide();
             backdrop.Hide();
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
@@ -446,11 +519,11 @@ namespace PictureViewer
         }
 
 
-        private void CheckEscape(object sender, KeyPressEventArgs e)
+        private void CheckKeys(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == (char)Keys.Escape)
             {
-                if (FullScreenMode)
+                if (fullScreenMode)
                 {
                     exitFullScreenMode();
                 }
@@ -462,5 +535,66 @@ namespace PictureViewer
         }
 
 
+
+
+        // PreviewKeyDown is where you preview the key.
+        // Do not put any logic here, instead use the
+        // KeyDown event after setting IsInputKey to true.
+        private void fullscreen_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Down:
+                case Keys.Up:
+                case Keys.Left:
+                case Keys.Right:
+                    e.IsInputKey = true;
+                    break;
+            }
+        }
+
+        // By default, KeyDown does not fire for the ARROW keys
+        void fullscreen_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Down:
+                    fullscreenPictureBox.Top -= 10;
+                    break;
+                case Keys.Up:
+                    fullscreenPictureBox.Top += 10;
+                    break;
+                case Keys.Left:
+                    fullscreenPictureBox.Left += 10;
+                    break;
+                case Keys.Right:
+                    fullscreenPictureBox.Left -= 10;
+                    break;
+            }
+        }
     }
+
+    /*
+    public class DoubleBufferedPictureBox : PictureBox
+    {
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            // Create a new bitmap and graphics object
+            Bitmap buffer = new Bitmap(this.Width, this.Height);
+            Graphics g = Graphics.FromImage(buffer);
+
+            // Call the base OnPaint method to draw the image to the bitmap
+            base.OnPaint(new PaintEventArgs(g, this.ClientRectangle));
+
+            // Draw the bitmap to the screen
+            e.Graphics.DrawImage(buffer, 0, 0);
+
+            // Dispose of the bitmap and graphics object
+            buffer.Dispose();
+            g.Dispose();
+        }
+    }
+    */
 }
+
+

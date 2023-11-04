@@ -49,7 +49,6 @@ namespace PictureViewer
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
-
             // 
             // tableLayoutPanel1
             // 
@@ -146,11 +145,11 @@ namespace PictureViewer
             this.checkBox1.AutoSize = true;
             this.checkBox1.Checked = true;
             this.checkBox1.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox1.Location = new System.Drawing.Point(320, 3);
+            this.checkBox1.Location = new System.Drawing.Point(305, 3);
             this.checkBox1.Name = "checkBox1";
-            this.checkBox1.Size = new System.Drawing.Size(112, 17);
+            this.checkBox1.Size = new System.Drawing.Size(127, 17);
             this.checkBox1.TabIndex = 4;
-            this.checkBox1.Text = "Image Fill Window";
+            this.checkBox1.Text = "Fit Image To Window";
             this.checkBox1.UseVisualStyleBackColor = true;
             this.checkBox1.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 
@@ -213,6 +212,7 @@ namespace PictureViewer
             this.flowLayoutPanel1.PerformLayout();
             this.flowLayoutPanel2.ResumeLayout(false);
             this.ResumeLayout(false);
+
         }
 
         #endregion
