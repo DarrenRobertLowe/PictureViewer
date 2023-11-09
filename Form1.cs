@@ -22,22 +22,24 @@ namespace PictureViewer
         private int iteration = 0;
         private int thumbnailWidth  = 100;
         private int thumbnailHeight = 100;
+        private int thumbnailPanelWidth = 150;
         private bool thumbnailsToggleState = true;
         private int tableLayoutPanel1PreviousWidth;
         private bool fullScreenMode = false;
-        public string openWithFile = "";
-        public float zoomFactor = 1.0f;
+        private string openWithFile = "";
+        private float zoomFactor = 1.0f;
+        private string filepath;
 
         PictureBox fullscreenPictureBox = new PictureBox();
         PictureBox backdrop = new PictureBox();
 
-        int oldWindowLeft;
-        int oldWindowTop;
-        float oldX = 0.0f;
-        float oldY = 0.0f;
-        int offsetX = 0;
-        int offsetY = 0;
-        bool isDragging = false;
+        private int oldWindowLeft;
+        private int oldWindowTop;
+        private float oldX = 0.0f;
+        private float oldY = 0.0f;
+        private int offsetX = 0;
+        private int offsetY = 0;
+        private bool isDragging = false;
 
         System.Windows.Forms.FormWindowState oldWindowState;
         Rectangle oldWindowBounds;
@@ -47,32 +49,6 @@ namespace PictureViewer
         {
             InitializeComponent();
 
-            /*
-            DialogResult dialogResult = MessageBox.Show("Do you want to use PictureViewer as your default image viewer?", "Associate Files", MessageBoxButtons.YesNo);
-            if (dialogResult == DialogResult.Yes)
-            {
-                
-                //RegistryKey key = Registry.ClassesRoot.CreateSubKey(".jpg");
-                //key.SetValue("", "MyApplication");
-                //key.CreateSubKey("DefaultIcon").SetValue("", "MyApplication.exe,1");
-                //key.CreateSubKey(@"Shell\Open\Command").SetValue("", "\"C:\\MyApplication\\MyApplication.exe\" \"%1\"");
-                
-                
-                
-                [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-                public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
-
-                private void RegisterForImages()
-                {
-                    // Register the application for images
-                    SHChangeNotify(0x8000000, 0x1000, IntPtr.Zero, IntPtr.Zero);
-                }
-                
-            }
-            else if (dialogResult == DialogResult.No)
-            {
-            }
-            */
 
             // Set the UserPaint and AllPaintingInWmPaint styles to true
             this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint, true);
@@ -85,8 +61,6 @@ namespace PictureViewer
 
             // controls
             this.KeyPreview = true;
-            //this.KeyUp += new KeyEventHandler(Form1_KeyUp);
-
             this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(CheckKeys);
             this.MouseWheel += new System.Windows.Forms.MouseEventHandler(CheckMouseWheel);
             
@@ -96,15 +70,65 @@ namespace PictureViewer
             fullscreenPictureBox.MouseDown += fullscreen_Clicked;
             fullscreenPictureBox.MouseMove += fullscreen_Moving;
             fullscreenPictureBox.MouseUp += fullscreen_Released;
-            //fullscreenPictureBox.KeyUp += fullscreen_KeyPress;
             this.PreviewKeyDown += new PreviewKeyDownEventHandler(fullscreen_PreviewKeyDown);
             this.KeyDown += new KeyEventHandler(fullscreen_KeyDown);
 
+            this.pictureBox1.DragDrop  += new System.Windows.Forms.DragEventHandler(this.pictureBox1_DragDrop);
+            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.pictureBox1_DragEnter);
+            //this.DragLeave += new System.Windows.Forms.DragEventHandler(this.Form1_DragLeave);
+
             // setup
+            //ToggleThumbnailsButton.PerformClick(); // hides the listView by default.
+            thumbnailsToggleState = false;
+            ToggleThumbnailsButton.Parent = tableLayoutPanel2;
+            tableLayoutPanel1.ColumnStyles[0].SizeType = SizeType.Absolute;
+            tableLayoutPanel1.ColumnStyles[0].Width = 0;
+            ToggleThumbnailsButton.Text = ">> Show Folder Contents";
+
+            this.AllowDrop = true;
+            pictureBox1.AllowDrop = true;
+            tableLayoutPanel1.AllowDrop = true;
+            tableLayoutPanel2.AllowDrop = true;
+            openButton.AllowDrop = true;
             updateNextPrev();
             updateViewList();
         }
 
+
+        
+        private void pictureBox1_DragEnter(object sender, DragEventArgs e)
+        {
+            //MessageBox.Show("Entered");
+
+            //if (e.Data.GetDataPresent(DataFormats.Bitmap))
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                //MessageBox.Show("A file!");
+                e.Effect = DragDropEffects.Copy;
+            } 
+            /*{
+                e.Effect = DragDropEffects.None;
+            }*/
+        }
+
+        private void pictureBox1_DragDrop(object sender, DragEventArgs e)
+        {
+            //MessageBox.Show("Dropped!");
+            //if (e.Data.GetDataPresent(DataFormats.Bitmap))
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                //MessageBox.Show("Dropped a file!");
+                //filepath = e.Data.GetData(DataFormats.Bitmap);
+            }
+                
+            //openFile(filepath);
+        }
+
+        private void Form1_DragLeave(object sender, DragEventArgs e)
+        {
+
+        }
+        
         private void CheckMouseWheel(object sender, MouseEventArgs mouse)
         {
             if (fullScreenMode)
@@ -148,6 +172,7 @@ namespace PictureViewer
                 int newY = fullscreenPictureBox.Top  + mouse.Y - offsetY;
                 fullscreenPictureBox.Left = newX;
                 fullscreenPictureBox.Top = newY;
+                fullscreenPictureBox.Refresh(); // prevent smearing
             }
         }
 
@@ -173,7 +198,7 @@ namespace PictureViewer
 
                 getThumbnails();
                 previousFolder = folder;
-            } 
+            }
         }
 
 
@@ -212,7 +237,7 @@ namespace PictureViewer
         {
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                string filepath = openFileDialog1.FileName;
+                filepath = openFileDialog1.FileName;
                 openFile(filepath);
             }
         }
@@ -221,7 +246,6 @@ namespace PictureViewer
         {
             Console.WriteLine("opening file : " + filepath);
             pictureBox1.Load(filepath);
-            Console.WriteLine("pictureBox1 ImageLocation: " + pictureBox1.ImageLocation);
             folder = System.IO.Path.GetDirectoryName(filepath);
             filteredFiles = getFiles();
 
@@ -247,15 +271,6 @@ namespace PictureViewer
         {
             pictureBox1.Image = null;
         }
-
-        private void setBackground_Click(object sender, EventArgs e) // set the background color
-        {
-            if (colorDialog1.ShowDialog() == DialogResult.OK)
-            {
-                pictureBox1.BackColor = colorDialog1.Color;
-            }
-        }
-
 
         /// <summary>
         /// Iterates backwards through the filteredFiles list
@@ -390,14 +405,19 @@ namespace PictureViewer
             if (thumbnailsToggleState == true)
             {
                 thumbnailsToggleState = false;
-                ToggleThumbnailsButton.Text = ">";
-                Console.WriteLine("Hidden");
+                ToggleThumbnailsButton.Parent = tableLayoutPanel2;
+                tableLayoutPanel1.ColumnStyles[0].SizeType = SizeType.Absolute;
+                tableLayoutPanel1.ColumnStyles[0].Width = 0;
+                ToggleThumbnailsButton.Text = ">> Show Folder Contents";
             }
             else
             {
                 thumbnailsToggleState = true;
-                ToggleThumbnailsButton.Text = "<";
-                Console.WriteLine("Visible");
+                tableLayoutPanel1.ColumnStyles[0].SizeType = SizeType.AutoSize;
+                tableLayoutPanel1.ColumnStyles[0].Width = thumbnailPanelWidth;
+                ToggleThumbnailsButton.Parent = listViewControlPanel;
+                ToggleThumbnailsButton.Text = "<< Hide Folder Contents";
+                ToggleThumbnailsButton.Left = 0;
             }
         }
 
@@ -423,8 +443,7 @@ namespace PictureViewer
             saveWindowPosition();
 
             // hide the flowLayoutPanel1
-            flowLayoutPanel1.Hide();
-            flowLayoutPanel2.Hide();
+            tableLayoutPanel1.Hide();
             listView1.Hide();
             
 
@@ -449,7 +468,7 @@ namespace PictureViewer
 
 
             // draw a backing panel
-            this.Controls.Add(backdrop); // needed for the picture box to work
+            this.Controls.Add(backdrop);
             backdrop.Width = screenWidth;
             backdrop.Height = screenHeight;
             backdrop.BackColor = Color.Black;
@@ -469,8 +488,7 @@ namespace PictureViewer
             oldX = fullscreenPictureBox.Left;
             oldY = fullscreenPictureBox.Top;
 
-            //int verticalOffset = (int)(Math.Round((screenHeight - pictureBox2.Image.Height) * .5)); // this probably won't work if we use zoom mode
-            fullscreenPictureBox.Top = 0;// verticalOffset;
+            fullscreenPictureBox.Top = 0;
             fullscreenPictureBox.BackColor = Color.Black;
             fullscreenPictureBox.Visible = true;
             fullscreenPictureBox.BringToFront();
@@ -484,15 +502,13 @@ namespace PictureViewer
         private void exitFullScreenMode()
         {
             fullScreenMode = false;
-            flowLayoutPanel1.Show();    // show the flowLayoutPanel1
-            flowLayoutPanel2.Show();    // show the flowLayoutPanel2
+            tableLayoutPanel1.Show();    // show the tableLayoutPanel1
             listView1.Show();           // show the list
             loadWindowState();
             this.Owner = null;
             fullscreenPictureBox.Hide();
             backdrop.Hide();
             this.FormBorderStyle = FormBorderStyle.Sizable;
-
         }
 
         private void saveWindowPosition()
@@ -572,29 +588,18 @@ namespace PictureViewer
                     break;
             }
         }
-    }
 
-    /*
-    public class DoubleBufferedPictureBox : PictureBox
-    {
-        protected override void OnPaint(PaintEventArgs e)
+        private void flowLayoutPanel1_Paint(object sender, PaintEventArgs e)
         {
-            // Create a new bitmap and graphics object
-            Bitmap buffer = new Bitmap(this.Width, this.Height);
-            Graphics g = Graphics.FromImage(buffer);
 
-            // Call the base OnPaint method to draw the image to the bitmap
-            base.OnPaint(new PaintEventArgs(g, this.ClientRectangle));
+        }
 
-            // Draw the bitmap to the screen
-            e.Graphics.DrawImage(buffer, 0, 0);
+        private void tableLayoutPanel2_Paint(object sender, PaintEventArgs e)
+        {
 
-            // Dispose of the bitmap and graphics object
-            buffer.Dispose();
-            g.Dispose();
         }
     }
-    */
+
 }
 
 
