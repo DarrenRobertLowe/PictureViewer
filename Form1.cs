@@ -27,8 +27,11 @@ namespace PictureViewer
         private int tableLayoutPanel1PreviousWidth;
         private bool fullScreenMode = false;
         private string openWithFile = "";
+        private string[] draggedFiles;
         private float zoomFactor = 1.0f;
         private string filepath;
+        
+
 
         PictureBox fullscreenPictureBox = new PictureBox();
         PictureBox backdrop = new PictureBox();
@@ -65,17 +68,20 @@ namespace PictureViewer
             this.MouseWheel += new System.Windows.Forms.MouseEventHandler(CheckMouseWheel);
             
 
-            // custom events
+            // subscribe to events
             fullscreenPictureBox.DoubleClick += fullscreen_DoubleClick;
             fullscreenPictureBox.MouseDown += fullscreen_Clicked;
             fullscreenPictureBox.MouseMove += fullscreen_Moving;
             fullscreenPictureBox.MouseUp += fullscreen_Released;
+            fullscreenPictureBox.AllowDrop = true;
             this.PreviewKeyDown += new PreviewKeyDownEventHandler(fullscreen_PreviewKeyDown);
             this.KeyDown += new KeyEventHandler(fullscreen_KeyDown);
 
-            this.pictureBox1.DragDrop  += new System.Windows.Forms.DragEventHandler(this.pictureBox1_DragDrop);
-            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.pictureBox1_DragEnter);
-            //this.DragLeave += new System.Windows.Forms.DragEventHandler(this.Form1_DragLeave);
+
+            pictureBox1.DragEnter += new DragEventHandler(pictureBox1_DragEnter);
+            pictureBox1.DragDrop  += new DragEventHandler(pictureBox1_DragDrop);
+            fullscreenPictureBox.DragEnter += new DragEventHandler(fullscreenPictureBox_DragEnter);
+            fullscreenPictureBox.DragDrop  += new DragEventHandler(fullscreenPictureBox_DragDrop);
 
             // setup
             //ToggleThumbnailsButton.PerformClick(); // hides the listView by default.
@@ -95,40 +101,46 @@ namespace PictureViewer
         }
 
 
-        
+
         private void pictureBox1_DragEnter(object sender, DragEventArgs e)
         {
-            //MessageBox.Show("Entered");
+            e.Effect = DragDropEffects.Move;
+            draggedFiles = (string[])e.Data.GetData(DataFormats.FileDrop); // gets the data from the file, whatever it is and parses it as a string
 
-            //if (e.Data.GetDataPresent(DataFormats.Bitmap))
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                //MessageBox.Show("A file!");
-                e.Effect = DragDropEffects.Copy;
-            } 
-            /*{
-                e.Effect = DragDropEffects.None;
-            }*/
+            /*
+             * This Windows drag and drop feature allows for multiple files at a time.
+             * The below code will print the location of each.
+            
+            string contents = "";
+            foreach (string s in draggedFiles) {
+                contents += "\n" + s;
+            }
+            MessageBox.Show("File contents: " + contents);
+            */
         }
 
         private void pictureBox1_DragDrop(object sender, DragEventArgs e)
         {
-            //MessageBox.Show("Dropped!");
-            //if (e.Data.GetDataPresent(DataFormats.Bitmap))
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                //MessageBox.Show("Dropped a file!");
-                //filepath = e.Data.GetData(DataFormats.Bitmap);
-            }
-                
-            //openFile(filepath);
+            // get only the first file
+            openFile(draggedFiles[0]);
         }
 
-        private void Form1_DragLeave(object sender, DragEventArgs e)
+
+
+        private void fullscreenPictureBox_DragEnter(object sender, DragEventArgs e)
         {
-
+            e.Effect = DragDropEffects.Move;
+            draggedFiles = (string[])e.Data.GetData(DataFormats.FileDrop); // gets the data from the file, whatever it is and parses it as a string
         }
-        
+
+        private void fullscreenPictureBox_DragDrop(object sender, DragEventArgs e)
+        {
+            // get only the first file
+            openFile(draggedFiles[0]);
+        }
+
+
+
         private void CheckMouseWheel(object sender, MouseEventArgs mouse)
         {
             if (fullScreenMode)
@@ -246,6 +258,7 @@ namespace PictureViewer
         {
             Console.WriteLine("opening file : " + filepath);
             pictureBox1.Load(filepath);
+            fullscreenPictureBox.Load(filepath);
             folder = System.IO.Path.GetDirectoryName(filepath);
             filteredFiles = getFiles();
 
@@ -256,7 +269,7 @@ namespace PictureViewer
             Console.WriteLine("Info : " + fileInfoText1.Text);
         }
 
-        private void updateFileInfo()
+            private void updateFileInfo()
         {
             fileInfoText1.Text = "File: " + pictureBox1.ImageLocation;
             fileInfoText1.Text += "\n";
@@ -508,6 +521,7 @@ namespace PictureViewer
             this.Owner = null;
             fullscreenPictureBox.Hide();
             backdrop.Hide();
+            this.TopMost = false;
             this.FormBorderStyle = FormBorderStyle.Sizable;
         }
 
